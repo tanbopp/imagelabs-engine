@@ -1,8 +1,0 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { ToolGrid } from '@/components/tools/tool-grid';
-import { Button } from '@/components/ui/button';
-import { ArrowDown, Sparkles } from 'lucide-react';
-export function HomePage() {
-    return (_jsxs("div", { className: "space-y-16", children: [_jsxs("section", { className: "text-center py-12 md:py-20 space-y-6 max-w-3xl mx-auto", children: [_jsxs("div", { className: "inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3.5 py-1 text-xs font-semibold text-foreground select-none", children: [_jsx(Sparkles, { className: "size-3.5" }), _jsx("span", { children: "Every image tool you need, 100% free and private" })] }), _jsx("h1", { className: "text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.1]", children: "Fast, Private In-Browser Image Tools." }), _jsx("p", { className: "text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto font-normal leading-relaxed", children: "Compress, resize, edit, convert, and enhance images instantly. No account creation, no tracking, and no persistent databases. Files auto-delete after 1 hour." }), _jsx("div", { className: "pt-2 flex justify-center", children: _jsx(Button, { asChild: true, size: "lg", className: "rounded-full gap-2 font-medium", children: _jsxs("a", { href: "#optimize", children: [_jsx("span", { children: "Explore Tools" }), _jsx(ArrowDown, { className: "size-4" })] }) }) })] }), _jsx(ToolGrid, {})] }));
-}
-//# sourceMappingURL=home-page.js.map

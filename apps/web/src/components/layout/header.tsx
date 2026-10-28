@@ -1,4 +1,5 @@
 import { ThemeToggle } from '@/components/common/theme-toggle';
+import { QuotaMeter } from '@/components/common/quota-meter';
 import { Layers } from 'lucide-react';
 
 export function Header() {
@@ -20,6 +21,7 @@ export function Header() {
             <a href="#ai" className="hover:text-foreground transition-colors">Advanced & AI</a>
           </nav>
 
+          <QuotaMeter />
           <ThemeToggle />
         </div>
       </div>

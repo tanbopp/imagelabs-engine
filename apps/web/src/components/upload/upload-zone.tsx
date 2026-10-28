@@ -3,6 +3,7 @@ import { UploadCloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { uploadFileToS3, UploadedFileResult } from '@/lib/s3-upload';
 import { UploadFileItem, FileUploadItemState } from './upload-file-item';
+import { CloudImportButtons } from '@/components/cloud/cloud-import-buttons';
 
 interface UploadZoneProps {
   onFilesUploaded?: (files: UploadedFileResult[]) => void;
@@ -137,7 +138,7 @@ export function UploadZone({ onFilesUploaded, acceptMultiple = true }: UploadZon
           Supports JPG, PNG, WebP, AVIF, GIF, TIFF up to 50 MB. Direct encrypted upload.
         </p>
 
-        <div className="mt-6">
+        <div className="mt-6 flex flex-col items-center gap-3">
           <Button
             type="button"
             size="lg"
@@ -146,6 +147,18 @@ export function UploadZone({ onFilesUploaded, acceptMultiple = true }: UploadZon
           >
             Select Images
           </Button>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
+            <span className="h-px w-8 bg-border" />
+            <span>or import from cloud</span>
+            <span className="h-px w-8 bg-border" />
+          </div>
+
+          <CloudImportButtons
+            onFilesImported={(files) => {
+              if (onFilesUploaded) onFilesUploaded(files);
+            }}
+          />
         </div>
       </div>
 

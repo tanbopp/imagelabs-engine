@@ -1,7 +1,0 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { ThemeToggle } from '@/components/common/theme-toggle';
-import { Layers } from 'lucide-react';
-export function Header() {
-    return (_jsx("header", { className: "sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md", children: _jsxs("div", { className: "max-w-[1200px] mx-auto flex h-16 items-center justify-between px-4 sm:px-6", children: [_jsxs("a", { href: "/", className: "flex items-center gap-2.5 font-bold text-xl tracking-tight text-foreground", children: [_jsx("div", { className: "flex size-9 items-center justify-center rounded-xl bg-foreground text-background", children: _jsx(Layers, { className: "size-5" }) }), _jsx("span", { children: "ImageLabs" })] }), _jsxs("div", { className: "flex items-center gap-3", children: [_jsxs("nav", { className: "hidden md:flex items-center gap-6 text-sm text-muted-foreground mr-2", children: [_jsx("a", { href: "#optimize", className: "hover:text-foreground transition-colors", children: "Optimization" }), _jsx("a", { href: "#convert", className: "hover:text-foreground transition-colors", children: "Conversion" }), _jsx("a", { href: "#edit", className: "hover:text-foreground transition-colors", children: "Editing" }), _jsx("a", { href: "#ai", className: "hover:text-foreground transition-colors", children: "Advanced & AI" })] }), _jsx(ThemeToggle, {})] })] }) }));
-}
-//# sourceMappingURL=header.js.map

@@ -29,8 +29,8 @@ export async function createPresignedUploadUrl(
     ContentLength: sizeBytes,
   });
 
-  // 15 minutes = 900 seconds TTL
-  const expiresInSeconds = 900;
+  // Strict security: 5 minutes = 300 seconds TTL
+  const expiresInSeconds = 300;
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
   const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 

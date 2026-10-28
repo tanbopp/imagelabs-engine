@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ToolGrid } from '@/components/tools/tool-grid';
 import { UploadZone } from '@/components/upload/upload-zone';
 import { Button } from '@/components/ui/button';
@@ -6,17 +6,102 @@ import { ArrowDown, Sparkles } from 'lucide-react';
 import { UploadedFileResult } from '@/lib/s3-upload';
 import { CompressPage } from '@/features/compress/pages/compress-page';
 import { ResizePage } from '@/features/resize/pages/resize-page';
+import { ConvertToJpgPage } from '@/features/convert/pages/convert-to-jpg-page';
+import { ConvertFromJpgPage } from '@/features/convert/pages/convert-from-jpg-page';
+import { ConvertPage } from '@/features/convert/pages/convert-page';
+import { CropPage } from '@/features/crop/pages/crop-page';
+import { RotatePage } from '@/features/rotate/pages/rotate-page';
+import { WatermarkPage } from '@/features/watermark/pages/watermark-page';
+import { EditorPage } from '@/features/editor/pages/editor-page';
+import { MemePage } from '@/features/meme/pages/meme-page';
+import { UpscalePage } from '@/features/upscale/pages/upscale-page';
+import { RemoveBgPage } from '@/features/remove-bg/pages/remove-bg-page';
+import { BlurFacePage } from '@/features/blur-face/pages/blur-face-page';
+import { HtmlToImagePage } from '@/features/html-to-image/pages/html-to-image-page';
 
 export function HomePage() {
-  const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [selectedTool, setSelectedTool] = useState<string | null>(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.replace('#tool-', '').replace('#', '');
+      return hash || null;
+    }
+    return null;
+  });
   const [, setUploadedFiles] = useState<UploadedFileResult[]>([]);
 
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#tool-', '').replace('#', '');
+      setSelectedTool(hash || null);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleSelectTool = (toolId: string | null) => {
+    setSelectedTool(toolId);
+    if (toolId) {
+      window.location.hash = `tool-${toolId}`;
+    } else {
+      history.pushState(null, '', window.location.pathname + window.location.search);
+    }
+  };
+
   if (selectedTool === 'compress') {
-    return <CompressPage onBack={() => setSelectedTool(null)} />;
+    return <CompressPage onBack={() => handleSelectTool(null)} />;
   }
 
   if (selectedTool === 'resize') {
-    return <ResizePage onBack={() => setSelectedTool(null)} />;
+    return <ResizePage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'convert-to-jpg') {
+    return <ConvertToJpgPage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'convert-from-jpg') {
+    return <ConvertFromJpgPage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'convert-image') {
+    return <ConvertPage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'crop') {
+    return <CropPage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'rotate') {
+    return <RotatePage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'watermark') {
+    return <WatermarkPage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'image-editor') {
+    return <EditorPage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'meme-generator') {
+    return <MemePage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'upscale') {
+    return <UpscalePage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'remove-background') {
+    return <RemoveBgPage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'blur-face') {
+    return <BlurFacePage onBack={() => handleSelectTool(null)} />;
+  }
+
+  if (selectedTool === 'html-to-image') {
+    return <HtmlToImagePage onBack={() => handleSelectTool(null)} />;
   }
 
   return (
@@ -41,8 +126,7 @@ export function HomePage() {
           <UploadZone
             onFilesUploaded={(files) => {
               setUploadedFiles((prev) => [...prev, ...files]);
-              // Default to compress on direct home upload
-              setSelectedTool('compress');
+              handleSelectTool('compress');
             }}
           />
         </div>
@@ -63,7 +147,7 @@ export function HomePage() {
       </section>
 
       {/* Categorized Tools Grid */}
-      <ToolGrid onSelectTool={(toolId) => setSelectedTool(toolId)} />
+      <ToolGrid onSelectTool={(toolId) => handleSelectTool(toolId)} />
     </div>
   );
 }

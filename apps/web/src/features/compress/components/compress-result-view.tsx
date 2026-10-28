@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Sparkles, FileImage, Check } from 'lucide-react';
 import { JobOutput } from '@imagelabs/shared';
 import { apiRequest } from '@/lib/api-client';
+import { CloudExportMenu } from '@/components/cloud/cloud-export-menu';
 
 interface CompressResultViewProps {
   originalInputs: Array<{ filename: string; sizeBytes: number }>;
@@ -81,6 +82,15 @@ export function CompressResultView({ originalInputs, outputs, jobId, onReset }: 
           >
             Compress More
           </Button>
+
+          {outputs.length > 0 && (
+            <div className="w-full flex justify-center pt-2">
+              <CloudExportMenu
+                downloadUrl={`/api/jobs/${jobId}/download`}
+                filename={outputs[0].filename}
+              />
+            </div>
+          )}
         </div>
       </Card>
 

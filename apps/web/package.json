@@ -18,12 +18,14 @@
     "@radix-ui/react-toggle": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.4.1",
     "clsx": "^2.1.1",
+    "fabric": "^5.3.0",
     "lucide-react": "^1.62.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@types/fabric": "^5.3.0",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

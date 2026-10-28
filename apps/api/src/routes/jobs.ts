@@ -4,9 +4,11 @@ import { GetObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { JobCreateRequestSchema, TOOLS, ToolMeta } from '@imagelabs/shared';
 import { createJobRecord, getJobRecord, deleteJobRecord } from '../services/job.service';
+import { checkAndIncrementJobs } from '../services/quota.service';
 import { fastQueue, aiQueue, puppeteerQueue } from '../lib/queue';
 import { getS3Client } from '../lib/s3';
 import { env } from '../config/env';
+import { jobsEnqueuedTotal } from '../plugins/metrics';
 
 export const jobRoutes: FastifyPluginAsync = async (fastify) => {
   // Dispatch a new processing job
@@ -37,6 +39,17 @@ export const jobRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
+    // Enforce daily jobs quota (20 jobs/day)
+    const quotaCheck = await checkAndIncrementJobs(sessionId);
+    if (!quotaCheck.allowed) {
+      return reply.status(403).send({
+        error: {
+          code: 'QUOTA_EXCEEDED',
+          message: 'Daily processing limit of 20 jobs reached. Quota resets at midnight UTC.',
+        },
+      });
+    }
+
     // Save job state to Redis hash (TTL 3600s)
     await createJobRecord(jobId, tool, inputs, sessionId);
 
@@ -56,6 +69,8 @@ export const jobRoutes: FastifyPluginAsync = async (fastify) => {
     } else {
       await fastQueue.add(tool, jobPayload, { jobId });
     }
+
+    jobsEnqueuedTotal.inc({ tool });
 
     return reply.status(200).send({ jobId });
   });
@@ -158,6 +173,10 @@ export const jobRoutes: FastifyPluginAsync = async (fastify) => {
 
     await deleteJobRecord(id);
 
-    return reply.status(200).send({ success: true, message: 'Job and assets purged successfully' });
+    return reply.status(200).send({
+      success: true,
+      message: 'Job and assets purged immediately from storage.',
+      purgedKeys: allKeys.length,
+    });
   });
 };

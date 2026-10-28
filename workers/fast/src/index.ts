@@ -1,10 +1,26 @@
 import { Worker, Job as BullJob } from 'bullmq';
 import { Redis } from 'ioredis';
 import dotenv from 'dotenv';
-import { JobInput, JobOutput, CompressOptions, ResizeOptions } from '@imagelabs/shared';
+import {
+  JobInput,
+  JobOutput,
+  CompressOptions,
+  ResizeOptions,
+  ConvertImageOptions,
+  ConvertFromJpgOptions,
+  CropOptions,
+  RotateOptions,
+  WatermarkOptions,
+} from '@imagelabs/shared';
 import { downloadS3Buffer, uploadS3Buffer } from './lib/s3';
 import { processCompress } from './processors/compress';
 import { processResize } from './processors/resize';
+import { processConvertToJpg } from './processors/convert-to-jpg';
+import { processConvertImage } from './processors/convert-image';
+import { processConvertFromJpg } from './processors/convert-from-jpg';
+import { processCrop } from './processors/crop';
+import { processRotate } from './processors/rotate';
+import { processWatermark } from './processors/watermark';
 
 dotenv.config({ path: '../../.env' });
 dotenv.config();
@@ -29,7 +45,6 @@ export const fastWorker = new Worker<JobPayload>(
     console.info(`[FastWorker] Processing job ${jobId} with tool: ${tool}`);
 
     try {
-      // 1. Mark status as processing in Redis
       await redis.hset(redisKey, {
         status: 'processing',
         progress: '10',
@@ -38,51 +53,101 @@ export const fastWorker = new Worker<JobPayload>(
 
       const outputs: JobOutput[] = [];
 
-      for (let i = 0; i < inputs.length; i++) {
-        const input = inputs[i];
+      // Special Case: convert-from-jpg with targetFormat === 'gif' requires all input buffers together
+      if (tool === 'convert-from-jpg' && (options as ConvertFromJpgOptions)?.targetFormat === 'gif') {
+        const inputBuffers = await Promise.all(inputs.map((inp) => downloadS3Buffer(inp.s3Key)));
+        const resList = await processConvertFromJpg(inputBuffers, options as ConvertFromJpgOptions);
 
-        // 2. Download from S3
-        const inputBuffer = await downloadS3Buffer(input.s3Key);
+        for (const res of resList) {
+          const outputFilename = `animated-gif-${jobId.slice(0, 8)}.${res.filenameExt}`;
+          const outputS3Key = `outputs/${jobId}/${outputFilename}`;
+          const mimeType = 'image/gif';
 
-        let outputBuffer: Buffer;
-        let outputMimeType = input.mimeType;
+          await uploadS3Buffer(outputS3Key, res.buffer, mimeType);
 
-        // 3. Dispatch to tool processor
-        if (tool === 'compress') {
-          const res = await processCompress(inputBuffer, options as CompressOptions);
-          outputBuffer = res.buffer;
-          outputMimeType = `image/${res.format === 'jpg' ? 'jpeg' : res.format}`;
-        } else if (tool === 'resize') {
-          const res = await processResize(inputBuffer, options as unknown as ResizeOptions);
-          outputBuffer = res.buffer;
-          outputMimeType = `image/${res.format === 'jpg' ? 'jpeg' : res.format}`;
-        } else {
-          // Pass-through default
-          outputBuffer = inputBuffer;
+          outputs.push({
+            s3Key: outputS3Key,
+            filename: outputFilename,
+            mimeType,
+            sizeBytes: res.buffer.length,
+          });
         }
+      } else {
+        // Standard iterative processing for single and batch files
+        for (let i = 0; i < inputs.length; i++) {
+          const input = inputs[i];
+          const inputBuffer = await downloadS3Buffer(input.s3Key);
 
-        // 4. Upload result to S3 outputs/ directory
-        const outputFilename = `${tool}-${input.filename}`;
-        const outputS3Key = `outputs/${jobId}/${outputFilename}`;
+          let outputBuffer: Buffer;
+          let outputFormat = 'jpeg';
+          let outputMimeType = input.mimeType;
 
-        await uploadS3Buffer(outputS3Key, outputBuffer, outputMimeType);
+          if (tool === 'compress') {
+            const res = await processCompress(inputBuffer, options as CompressOptions);
+            outputBuffer = res.buffer;
+            outputFormat = res.format === 'jpg' ? 'jpeg' : res.format;
+            outputMimeType = `image/${outputFormat}`;
+          } else if (tool === 'resize') {
+            const res = await processResize(inputBuffer, options as unknown as ResizeOptions);
+            outputBuffer = res.buffer;
+            outputFormat = res.format === 'jpg' ? 'jpeg' : res.format;
+            outputMimeType = `image/${outputFormat}`;
+          } else if (tool === 'convert-to-jpg') {
+            const res = await processConvertToJpg(inputBuffer);
+            outputBuffer = res.buffer;
+            outputFormat = 'jpeg';
+            outputMimeType = 'image/jpeg';
+          } else if (tool === 'convert-image') {
+            const res = await processConvertImage(inputBuffer, options as ConvertImageOptions);
+            outputBuffer = res.buffer;
+            outputFormat = res.format;
+            outputMimeType = `image/${res.format === 'jpg' ? 'jpeg' : res.format}`;
+          } else if (tool === 'convert-from-jpg') {
+            const resList = await processConvertFromJpg([inputBuffer], options as ConvertFromJpgOptions);
+            outputBuffer = resList[0].buffer;
+            outputFormat = resList[0].filenameExt;
+            outputMimeType = `image/${resList[0].filenameExt}`;
+          } else if (tool === 'crop') {
+            const res = await processCrop(inputBuffer, options as unknown as CropOptions);
+            outputBuffer = res.buffer;
+            outputFormat = res.format === 'jpg' ? 'jpeg' : res.format;
+            outputMimeType = `image/${outputFormat}`;
+          } else if (tool === 'rotate') {
+            const res = await processRotate(inputBuffer, options as unknown as RotateOptions);
+            outputBuffer = res.buffer;
+            outputFormat = res.format === 'jpg' ? 'jpeg' : res.format;
+            outputMimeType = `image/${outputFormat}`;
+          } else if (tool === 'watermark') {
+            const res = await processWatermark(inputBuffer, options as unknown as WatermarkOptions);
+            outputBuffer = res.buffer;
+            outputFormat = res.format === 'jpg' ? 'jpeg' : res.format;
+            outputMimeType = `image/${outputFormat}`;
+          } else {
+            outputBuffer = inputBuffer;
+          }
 
-        outputs.push({
-          s3Key: outputS3Key,
-          filename: outputFilename,
-          mimeType: outputMimeType,
-          sizeBytes: outputBuffer.length,
-        });
+          const baseNameWithoutExt = input.filename.replace(/\.[^/.]+$/, '');
+          const ext = outputFormat === 'jpeg' ? 'jpg' : outputFormat;
+          const outputFilename = `${tool}-${baseNameWithoutExt}.${ext}`;
+          const outputS3Key = `outputs/${jobId}/${outputFilename}`;
 
-        // Report granular progress
-        const currentProgress = Math.round(10 + ((i + 1) / inputs.length) * 85);
-        await redis.hset(redisKey, {
-          progress: currentProgress.toString(),
-          updatedAt: new Date().toISOString(),
-        });
+          await uploadS3Buffer(outputS3Key, outputBuffer, outputMimeType);
+
+          outputs.push({
+            s3Key: outputS3Key,
+            filename: outputFilename,
+            mimeType: outputMimeType,
+            sizeBytes: outputBuffer.length,
+          });
+
+          const currentProgress = Math.round(10 + ((i + 1) / inputs.length) * 85);
+          await redis.hset(redisKey, {
+            progress: currentProgress.toString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
       }
 
-      // 5. Mark completed
       await redis.hset(redisKey, {
         status: 'completed',
         progress: '100',

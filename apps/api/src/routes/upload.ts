@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { UploadRequestSchema } from '@imagelabs/shared';
 import { createPresignedUploadUrl } from '../services/storage.service';
+import { checkAndIncrementBytes } from '../services/quota.service';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -46,6 +47,18 @@ export const uploadRoutes: FastifyPluginAsync = async (fastify) => {
         error: {
           code: 'FILE_TOO_LARGE',
           message: 'The file exceeds the maximum allowed size of 50 MB.',
+        },
+      });
+    }
+
+    // Enforce daily bytes quota (500 MB/day)
+    const sessionId = request.sessionId!;
+    const quotaCheck = await checkAndIncrementBytes(sessionId, sizeBytes);
+    if (!quotaCheck.allowed) {
+      return reply.status(403).send({
+        error: {
+          code: 'QUOTA_EXCEEDED',
+          message: 'Daily bandwidth quota of 500 MB exceeded. Quota resets at midnight UTC.',
         },
       });
     }

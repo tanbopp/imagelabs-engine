@@ -12,7 +12,7 @@ const rateLimitPluginCallback: FastifyPluginAsync = async (fastify) => {
     }
 
     const ip = request.ip || '127.0.0.1';
-    const endpoint = request.routerPath || request.url.split('?')[0];
+    const endpoint = (request as unknown as { routeOptions?: { url?: string }; routerPath?: string }).routeOptions?.url || request.url.split('?')[0];
     const key = `ratelimit:${ip}:${endpoint}`;
     const now = Date.now();
     const windowMs = 60 * 1000; // 1 minute sliding window

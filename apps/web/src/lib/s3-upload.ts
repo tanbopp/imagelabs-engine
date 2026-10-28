@@ -10,6 +10,7 @@ export interface UploadedFileResult {
   filename: string;
   mimeType: string;
   sizeBytes: number;
+  previewUrl?: string;
 }
 
 export async function uploadFileToS3(
@@ -62,5 +63,6 @@ export async function uploadFileToS3(
     filename: file.name,
     mimeType: file.type || 'image/jpeg',
     sizeBytes: file.size,
+    previewUrl: URL.createObjectURL(file),
   };
 }

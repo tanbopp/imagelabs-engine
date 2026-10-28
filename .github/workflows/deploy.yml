@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & Deploy to AWS ECS
+    runs-on: ubuntu-latest
+    if: github.repository == 'imagelabs/imagelabs'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push Docker images to ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          COMMIT_TAG: ${{ github.sha }}
+        run: |
+          docker build -f apps/web/Dockerfile -t $REGISTRY/imagelabs-web:$COMMIT_TAG -t $REGISTRY/imagelabs-web:latest .
+          docker build -f apps/api/Dockerfile -t $REGISTRY/imagelabs-api:$COMMIT_TAG -t $REGISTRY/imagelabs-api:latest .
+          docker build -f workers/fast/Dockerfile -t $REGISTRY/imagelabs-fast:$COMMIT_TAG -t $REGISTRY/imagelabs-fast:latest .
+          docker build -f workers/ai/Dockerfile -t $REGISTRY/imagelabs-ai:$COMMIT_TAG -t $REGISTRY/imagelabs-ai:latest .
+          docker build -f workers/puppeteer/Dockerfile -t $REGISTRY/imagelabs-puppeteer:$COMMIT_TAG -t $REGISTRY/imagelabs-puppeteer:latest .
+
+          docker push $REGISTRY/imagelabs-web:$COMMIT_TAG
+          docker push $REGISTRY/imagelabs-api:$COMMIT_TAG
+          docker push $REGISTRY/imagelabs-fast:$COMMIT_TAG
+          docker push $REGISTRY/imagelabs-ai:$COMMIT_TAG
+          docker push $REGISTRY/imagelabs-puppeteer:$COMMIT_TAG
+
+      - name: Deploy Task Definitions to ECS Services
+        run: |
+          aws ecs update-service --cluster imagelabs-prod --service web-service --force-new-deployment
+          aws ecs update-service --cluster imagelabs-prod --service api-service --force-new-deployment
+          aws ecs update-service --cluster imagelabs-prod --service fast-worker-service --force-new-deployment
+          aws ecs update-service --cluster imagelabs-prod --service ai-worker-service --force-new-deployment
+          aws ecs update-service --cluster imagelabs-prod --service puppeteer-worker-service --force-new-deployment
